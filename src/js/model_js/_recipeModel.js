@@ -31,7 +31,6 @@ export async function loadRecipes(query) {
             const newRecipe = new modelRecipe(recipe.id, recipe.publisher, recipe.title, recipe.image_url)
             state.search.results.push(newRecipe)
         });
-        console.log("Search results saved")
     } catch(error) {
         console.error(error)
     }
@@ -50,6 +49,12 @@ export async function getRecipe(id) {
     catch (error) {
         console.error(error)
     }
+}
+export function updateServings(newServings) {
+    state.recipe.ingredients.forEach(ing => {
+        ing.quantity *= newServings / state.recipe.servings;
+    });
+    state.recipe.servings = newServings;
 }
 
 // https://forkify-api.herokuapp.com/v2

@@ -9,7 +9,6 @@ export class searchView{
         this._parentEl.addEventListener("submit", function (e) {
             e.preventDefault();
             handler()
-            console.log("Search Submitted")
         })
     }
 }

@@ -538,7 +538,7 @@ body {
 
 .recipe__fig:before {
   content: "";
-  opacity: .6;
+  opacity: .3;
   background-image: linear-gradient(to bottom right, #fbdb89, #f48982);
   width: 100%;
   height: 100%;

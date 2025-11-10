@@ -1,7 +1,9 @@
-export class recipeView{
+import icons from 'url:../../img/icons.svg';
+import { state } from '../model_js/_recipeModel';
+export class recipeView {
     constructor() {
-        this._parentEl = document.querySelector(".recipe")
-        this._data = {}
+        this._parentEl = document.querySelector('.recipe');
+        this._data = {};
     }
     addHandlerRender(recipe) {
         this._data.id = recipe.id;
@@ -12,14 +14,9 @@ export class recipeView{
         this._data.servings = recipe.servings;
         this._data.publisher = recipe.publisher;
         this._data.src = recipe.source_url;
-        console.log(recipe.ingredients)
         const html = this.generateMarkup(this._data);
-        this._parentEl.innerHTML = "";
-        this._parentEl.insertAdjacentHTML(
-        'beforeend',
-        html
-        );
-
+        this._parentEl.innerHTML = '';
+        this._parentEl.insertAdjacentHTML('beforeend', html);
     }
     generateMarkup(data) {
         return `
@@ -33,81 +30,65 @@ export class recipeView{
         <div class="recipe__details">
             <div class="recipe__info">
                 <svg class="recipe__info-icon">
-                    <use href="src/img/icons.svg#icon-clock"></use>
+                    <use href="${icons}#icon-clock"></use>
                 </svg>
-                <span class="recipe__info-data recipe__info-data--minutes">${data.time}</span>
+                <span class="recipe__info-data recipe__info-data--minutes">${
+                    data.time
+                }</span>
                 <span class="recipe__info-text">minutes</span>
             </div>
             <div class="recipe__info">
                 <svg class="recipe__info-icon">
-                    <use href="src/img/icons.svg#icon-users"></use>
+                    <use href="${icons}#icon-users"></use>
                 </svg>
-                <span class="recipe__info-data recipe__info-data--people">${data.servings}</span>
+                <span class="recipe__info-data recipe__info-data--people">${
+                    data.servings
+                }</span>
                 <span class="recipe__info-text">servings</span>
-
                 <div class="recipe__info-buttons">
-                <button class="btn--tiny btn--increase-servings">
-                    <svg>
-                        <use href="src/img/icons.svg#icon-minus-circle"></use>
-                    </svg>
-                </button>
-                <button class="btn--tiny btn--increase-servings">
-                    <svg>
-                        <use href="src/img/icons.svg#icon-plus-circle"></use>
-                    </svg>
-                </button>
+                    <button class="btn--tiny btn--decrease-servings">
+                        <svg>
+                            <use href="${icons}#icon-minus-circle"></use>
+                        </svg>
+                    </button>
+                    <button class="btn--tiny btn--increase-servings">
+                        <svg>
+                            <use href="${icons}#icon-plus-circle"></use>
+                        </svg>
+                    </button>
+                    </div>
                 </div>
+                <div class="recipe__user-generated">
+                    <svg>
+                        <use href="${icons}#icon-user"></use>
+                    </svg>
+                </div>
+                <button class="btn--round">
+                    <svg class="">
+                        <use href="${icons}#icon-bookmark-fill"></use>
+                    </svg>
+                </button>
             </div>
-
-            <div class="recipe__user-generated">
-                <svg>
-                    <use href="src/img/icons.svg#icon-user"></use>
-                </svg>
-            </div>
-            <button class="btn--round">
-                <svg class="">
-                    <use href="src/img/icons.svg#icon-bookmark-fill"></use>
-                </svg>
-            </button>
-        </div>
 
         <div class="recipe__ingredients">
             <h2 class="heading--2">Recipe ingredients</h2>
             <ul class="recipe__ingredient-list">
-            ${data.ingredients.map(element =>{
-                            `
+            ${data.ingredients
+                .map(
+                    element => `
                                 <li class="recipe__ingredient">
-                                  <svg class="recipe__icon">
-                                    <use href="src/img/icons.svg#icon-check"></use>
-                                  </svg>
-                                  <div class="recipe__quantity">${element.quantity}</div>
-                                  <div class="recipe__description">
-                                    <span class="recipe__unit">${element.unit}</span>
-                                    ${element.description}
-                                  </div>
-                                </li>`;
-            }).join("")}
-                <li class="recipe__ingredient">
-                <svg class="recipe__icon">
-                    <use href="src/img/icons.svg#icon-check"></use>
-                </svg>
-                <div class="recipe__quantity">1000</div>
-                <div class="recipe__description">
-                    <span class="recipe__unit">g</span>
-                    pasta
-                </div>
-                </li>
-
-                <li class="recipe__ingredient">
-                <svg class="recipe__icon">
-                    <use href="src/img/icons.svg#icon-check"></use>
-                </svg>
-                <div class="recipe__quantity">0.5</div>
-                <div class="recipe__description">
-                    <span class="recipe__unit">cup</span>
-                    ricotta cheese
-                </div>
-                </li>
+                                    <svg class="recipe__icon">
+                                        <use href="${icons}#icon-check"></use>
+                                    </svg>
+                                    <div class="recipe__quantity">${element.quantity}</div>
+                                    <div class="recipe__description">
+                                        <span class="recipe__unit">${element.unit}</span>
+                                        ${element.description}
+                                    </div>
+                                </li>`
+                )
+                .join('')}
+            
             </ul>
         </div>
 
@@ -125,15 +106,34 @@ export class recipeView{
             >
                 <span>Directions</span>
                 <svg class="search__icon">
-                    <use href="src/img/icons.svg#icon-arrow-right"></use>
+                    <use href="${icons}#icon-arrow-right"></use>
                 </svg>
             </a>
         </div>
-      </div>
 
         `;
     }
-    getId() {
-        
+    addHandlerServings(handler) {
+        this._parentEl.addEventListener('click', e => {
+            const btn = e.target.closest(
+                '.btn--increase-servings, .btn--decrease-servings'
+            );
+            if (!btn) return;
+            const upDateTo = btn.classList.contains('btn--increase-servings')
+                ? state.recipe.servings + 1
+                : state.recipe.servings - 1;
+            if (upDateTo > 0) {
+                handler(upDateTo);
+                this.updateRecipeView(state.recipe);
+            }
+        });
+    }
+    updateRecipeView(recipe) {
+        document.querySelector('.recipe__info-data--people').textContent =
+            recipe.servings;
+        const quantityEl = document.querySelectorAll('.recipe__quantity');
+        quantityEl.forEach((el, i) => {
+            el.textContent = recipe.ingredients[i].quantity.toFixed(1);
+        });
     }
 }
