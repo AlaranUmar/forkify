@@ -489,6 +489,7 @@ body {
   flex-direction: column;
   padding: 3rem 0;
   display: flex;
+  position: relative;
 }
 
 .results {
@@ -520,6 +521,8 @@ body {
   margin-top: 4rem;
   padding: 0 3.5rem;
   font-size: 1.2rem;
+  position: absolute;
+  bottom: 3rem;
 }
 
 .copyright .twitter-link:link, .copyright .twitter-link:visited {
@@ -728,6 +731,7 @@ body {
 .hidden {
   visibility: hidden;
   opacity: 0;
+  display: none;
 }
 
 .upload {

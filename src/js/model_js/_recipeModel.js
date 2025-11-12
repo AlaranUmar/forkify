@@ -36,19 +36,26 @@ export async function loadRecipes(query) {
     }
 }
 
-export async function getRecipe(id) {
+export async function getRecipe(id, param = false) {
     try {
         const apiLink =
             `https://forkify-api.herokuapp.com/api/v2/recipes/${id}`;
         const res = await fetch(apiLink)
         const {data} = await res.json()
         const { recipe } = data
-        state.recipe = recipe
+        if (!param) {
+            state.recipe = recipe
+        } else {
+            return recipe
+        }
 
     }
     catch (error) {
         console.error(error)
     }
+}
+export async function upload(){
+    
 }
 export function updateServings(newServings) {
     state.recipe.ingredients.forEach(ing => {

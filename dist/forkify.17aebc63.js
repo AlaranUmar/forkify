@@ -718,11 +718,22 @@ var _searchView = require("../view_js/_searchView");
 var _recipeModel = require("../model_js/_recipeModel");
 var _resultsView = require("../view_js/_resultsView");
 var _recipeView = require("../view_js/_recipeView");
+var _addRecipeView = require("../view_js/_addRecipeView");
+var _bookmarkView = require("../view_js/_bookmarkView");
 const Search = new (0, _searchView.searchView)();
 const Result = new (0, _resultsView.resultsView)();
 const Recipe = new (0, _recipeView.recipeView)();
+const addRecipe = new (0, _addRecipeView.addRecipeView)();
+const bookmark = new (0, _bookmarkView.bookmarkView)();
 function init() {
     Search.addHandlerSearch(controlSearchResults);
+    addRecipe.addHandlerAddRecipe(controlUpload);
+    bookmark.renderBook(initBookmark);
+}
+async function initBookmark(id) {
+    const c = await (0, _recipeModel.getRecipe)(id, true);
+    bookmark.render(c, true);
+    bookmark.addListener(controlRecipe);
 }
 async function controlSearchResults() {
     const query = Search.getQuery();
@@ -731,9 +742,18 @@ async function controlSearchResults() {
     Result.addListener(controlRecipe);
 }
 async function controlRecipe(id) {
+    Recipe.renderSpinner();
     await (0, _recipeModel.getRecipe)(id);
-    Recipe.addHandlerRender((0, _recipeModel.state).recipe);
+    Recipe.addHandlerRender((0, _recipeModel.state).recipe, controlBookmark);
     Recipe.addHandlerServings((0, _recipeModel.updateServings));
+}
+async function controlBookmark(params) {
+    const c = await (0, _recipeModel.getRecipe)(params, true);
+    bookmark.render(c);
+    bookmark.addListener(controlRecipe);
+}
+async function controlUpload() {
+    (0, _recipeModel.upload)();
 }
 init();
 const timeout = function(s) {
@@ -744,7 +764,7 @@ const timeout = function(s) {
     });
 }; ///////////////////////////////////////
 
-},{"../view_js/_searchView":"hmiJQ","../model_js/_recipeModel":"6jEe1","../view_js/_resultsView":"cYJ07","../view_js/_recipeView":"e6ypi"}],"hmiJQ":[function(require,module,exports,__globalThis) {
+},{"../view_js/_searchView":"hmiJQ","../model_js/_recipeModel":"6jEe1","../view_js/_resultsView":"cYJ07","../view_js/_recipeView":"e6ypi","../view_js/_addRecipeView":"fJ4WV","../view_js/_bookmarkView":"2OzFW"}],"hmiJQ":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "searchView", ()=>searchView);
@@ -758,6 +778,7 @@ class searchView {
     addHandlerSearch(handler) {
         this._parentEl.addEventListener("submit", function(e) {
             e.preventDefault();
+            console.log("Submitted");
             handler();
         });
     }
@@ -799,6 +820,7 @@ parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "state", ()=>state);
 parcelHelpers.export(exports, "loadRecipes", ()=>loadRecipes);
 parcelHelpers.export(exports, "getRecipe", ()=>getRecipe);
+parcelHelpers.export(exports, "upload", ()=>upload);
 parcelHelpers.export(exports, "updateServings", ()=>updateServings) // https://forkify-api.herokuapp.com/v2
 ;
 const state = {
@@ -837,17 +859,19 @@ async function loadRecipes(query) {
         console.error(error);
     }
 }
-async function getRecipe(id) {
+async function getRecipe(id, param = false) {
     try {
         const apiLink = `https://forkify-api.herokuapp.com/api/v2/recipes/${id}`;
         const res = await fetch(apiLink);
         const { data } = await res.json();
         const { recipe } = data;
-        state.recipe = recipe;
+        if (!param) state.recipe = recipe;
+        else return recipe;
     } catch (error) {
         console.error(error);
     }
 }
+async function upload() {}
 function updateServings(newServings) {
     state.recipe.ingredients.forEach((ing)=>{
         ing.quantity *= newServings / state.recipe.servings;
@@ -865,11 +889,84 @@ var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
 class resultsView {
     childId;
     constructor(){
-        this._parentEl = document.querySelector('.results');
+        this._parentEl = document.querySelector('.search-results');
     }
     render(recipes) {
-        console.log('gotten results');
-        this._parentEl.innerHTML = recipes.map(this.generateMarkup).join('');
+        this._new_recipes = [];
+        this._parentEl.querySelectorAll('.results')?.forEach((el)=>{
+            el?.remove();
+        });
+        const chunck = 10;
+        for(let i = 0; i < recipes.length; i += chunck){
+            const ch = recipes.slice(i, i + chunck);
+            this._new_recipes.push(ch);
+        }
+        this._new_recipes.forEach((page, index)=>{
+            this._child = document.createElement('ul');
+            this._child.classList.add(`results${index}`, 'results');
+            this._parentEl.append(this._child);
+            if (!(index === 0)) this._child.classList.add('hidden');
+            this._child.innerHTML = page.map(this.generateMarkup).join('');
+            if (!(index === 0) && !(index === this._new_recipes.length - 1)) {
+                const pagination = `<div class="pagination">
+                    <button class="btn--inline pagination__btn--prev">
+                        <svg class="search__icon">
+                            <use href="${(0, _iconsSvgDefault.default)}#icon-arrow-left"></use>
+							</svg>
+                        <span>Page ${index}</span>
+						</button>
+						<button class="btn--inline pagination__btn--next">
+                        <span>Page ${index + 2}</span>
+                        <svg class="search__icon">
+						<use href="${(0, _iconsSvgDefault.default)}#icon-arrow-right"></use>
+                        </svg>
+						</button>
+						</div>`;
+                this._child.insertAdjacentHTML('beforeend', pagination);
+            } else if (index === 0 && recipes.length > chunck) {
+                const pagination = `<div class="pagination">
+						<button class="btn--inline pagination__btn--next ">
+						<span>Page 2</span>
+						<svg class="search__icon">
+						<use href="${(0, _iconsSvgDefault.default)}#icon-arrow-right"></use>
+						</svg>
+						</button>
+						</div>`;
+                this._child.insertAdjacentHTML('beforeend', pagination);
+            } else if (index === this._new_recipes.length - 1 && recipes.length > chunck) {
+                const pagination = `<div class="pagination">
+                        <button class="btn--inline pagination__btn--prev">
+						<svg class="search__icon">
+						<use href="${(0, _iconsSvgDefault.default)}#icon-arrow-left"></use>
+						</svg>
+						<span>Page ${index}</span>
+                        </button>
+                    </div>`;
+                this._child.insertAdjacentHTML('beforeend', pagination);
+            }
+        });
+        this._prev = document.querySelectorAll('.pagination__btn--prev');
+        this._next = document.querySelectorAll('.pagination__btn--next');
+        this._next?.forEach((btn)=>{
+            btn.addEventListener('click', (e)=>{
+                const current = e.target.closest('.results');
+                let nextitem = current.nextElementSibling;
+                document.querySelectorAll('.results').forEach((el)=>{
+                    el.classList.add("hidden");
+                });
+                nextitem.classList.remove('hidden');
+            });
+        });
+        this._prev?.forEach((btn)=>{
+            btn.addEventListener('click', (e)=>{
+                const current = e.target.closest('.results');
+                let nextitem = current.previousElementSibling;
+                document.querySelectorAll('.results').forEach((el)=>{
+                    el.classList.add("hidden");
+                });
+                nextitem.classList.remove('hidden');
+            });
+        });
     }
     generateMarkup(recipe) {
         return `<li class="preview">
@@ -916,8 +1013,16 @@ class recipeView {
     constructor(){
         this._parentEl = document.querySelector('.recipe');
         this._data = {};
+        this._spinner = this._parentEl.querySelector('.spinner');
+        this._message = this._parentEl.querySelector('.message');
     }
-    addHandlerRender(recipe) {
+    renderSpinner() {
+        this._message.classList.add('hidden');
+        this._spinner.classList.remove('hidden');
+        this._parentEl.querySelector('.under-recipe')?.remove();
+    }
+    addHandlerRender(recipe, handler) {
+        this._spinner.classList.add('hidden');
         this._data.id = recipe.id;
         this._data.img_url = recipe.image_url;
         this._data.title = recipe.title;
@@ -927,94 +1032,101 @@ class recipeView {
         this._data.publisher = recipe.publisher;
         this._data.src = recipe.source_url;
         const html = this.generateMarkup(this._data);
-        this._parentEl.innerHTML = '';
+        this._parentEl.innerHTML = "";
         this._parentEl.insertAdjacentHTML('beforeend', html);
+        this.boomark = document.querySelector('.btn--round');
+        this.boomark.addEventListener('click', ()=>{
+            handler(this._data.id);
+        });
     }
     generateMarkup(data) {
         return `
-        <figure class="recipe__fig">
-            <img src="${data.img_url}" alt="Tomato" class="recipe__img" />
-            <h1 class="recipe__title">
-                <span>${data.title}</span>
-            </h1>
-        </figure>
+    <div class="under-recipe">
 
-        <div class="recipe__details">
-            <div class="recipe__info">
-                <svg class="recipe__info-icon">
-                    <use href="${0, _iconsSvgDefault.default}#icon-clock"></use>
-                </svg>
-                <span class="recipe__info-data recipe__info-data--minutes">${data.time}</span>
-                <span class="recipe__info-text">minutes</span>
-            </div>
-            <div class="recipe__info">
-                <svg class="recipe__info-icon">
-                    <use href="${0, _iconsSvgDefault.default}#icon-users"></use>
-                </svg>
-                <span class="recipe__info-data recipe__info-data--people">${data.servings}</span>
-                <span class="recipe__info-text">servings</span>
-                <div class="recipe__info-buttons">
-                    <button class="btn--tiny btn--decrease-servings">
-                        <svg>
-                            <use href="${0, _iconsSvgDefault.default}#icon-minus-circle"></use>
-                        </svg>
-                    </button>
-                    <button class="btn--tiny btn--increase-servings">
-                        <svg>
-                            <use href="${0, _iconsSvgDefault.default}#icon-plus-circle"></use>
-                        </svg>
-                    </button>
-                    </div>
-                </div>
-                <div class="recipe__user-generated">
+    <figure class="recipe__fig">
+        <img src="${data.img_url}" alt="Tomato" class="recipe__img" />
+        <h1 class="recipe__title">
+            <span>${data.title}</span>
+        </h1>
+    </figure>
+
+    <div class="recipe__details">
+        <div class="recipe__info">
+            <svg class="recipe__info-icon">
+                <use href="${0, _iconsSvgDefault.default}#icon-clock"></use>
+            </svg>
+            <span class="recipe__info-data recipe__info-data--minutes">${data.time}</span>
+            <span class="recipe__info-text">minutes</span>
+        </div>
+        <div class="recipe__info">
+            <svg class="recipe__info-icon">
+                <use href="${0, _iconsSvgDefault.default}#icon-users"></use>
+            </svg>
+            <span class="recipe__info-data recipe__info-data--people">${data.servings}</span>
+            <span class="recipe__info-text">servings</span>
+            <div class="recipe__info-buttons">
+                <button class="btn--tiny btn--decrease-servings">
                     <svg>
-                        <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
-                    </svg>
-                </div>
-                <button class="btn--round">
-                    <svg class="">
-                        <use href="${0, _iconsSvgDefault.default}#icon-bookmark-fill"></use>
+                        <use href="${0, _iconsSvgDefault.default}#icon-minus-circle"></use>
                     </svg>
                 </button>
+                <button class="btn--tiny btn--increase-servings">
+                    <svg>
+                        <use href="${0, _iconsSvgDefault.default}#icon-plus-circle"></use>
+                    </svg>
+                </button>
+                </div>
             </div>
-
-        <div class="recipe__ingredients">
-            <h2 class="heading--2">Recipe ingredients</h2>
-            <ul class="recipe__ingredient-list">
-            ${data.ingredients.map((element)=>`
-                                <li class="recipe__ingredient">
-                                    <svg class="recipe__icon">
-                                        <use href="${0, _iconsSvgDefault.default}#icon-check"></use>
-                                    </svg>
-                                    <div class="recipe__quantity">${element.quantity}</div>
-                                    <div class="recipe__description">
-                                        <span class="recipe__unit">${element.unit}</span>
-                                        ${element.description}
-                                    </div>
-                                </li>`).join('')}
-            
-            </ul>
-        </div>
-
-        <div class="recipe__directions">
-            <h2 class="heading--2">How to cook it</h2>
-            <p class="recipe__directions-text">
-                This recipe was carefully designed and tested by
-                <span class="recipe__publisher">The Pioneer Woman</span>. Please check out
-                directions at their website.
-            </p>
-            <a
-                class="btn--small recipe__btn"
-                href="http://thepioneerwoman.com/cooking/pasta-with-tomato-cream-sauce/"
-                target="_blank"
-            >
-                <span>Directions</span>
-                <svg class="search__icon">
-                    <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
+            <div class="recipe__user-generated">
+                <svg>
+                    <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
                 </svg>
-            </a>
+            </div>
+            <button class="btn--round">
+                <svg class="">
+                    <use href="${0, _iconsSvgDefault.default}#icon-bookmark-fill"></use>
+                </svg>
+            </button>
         </div>
 
+    <div class="recipe__ingredients">
+        <h2 class="heading--2">Recipe ingredients</h2>
+        <ul class="recipe__ingredient-list">
+        ${data.ingredients.map((element)=>`
+                            <li class="recipe__ingredient">
+                                <svg class="recipe__icon">
+                                    <use href="${0, _iconsSvgDefault.default}#icon-check"></use>
+                                </svg>
+                                <div class="recipe__quantity">${element.quantity ? element.quantity : ''}</div>
+                                <div class="recipe__description">
+                                    <span class="recipe__unit">${element.unit}</span>
+                                    ${element.description}
+                                </div>
+                            </li>`).join('')}
+        
+        </ul>
+    </div>
+
+    <div class="recipe__directions">
+        <h2 class="heading--2">How to cook it</h2>
+        <p class="recipe__directions-text">
+            This recipe was carefully designed and tested by
+            <span class="recipe__publisher">The Pioneer Woman</span>. Please check out
+            directions at their website.
+        </p>
+        <a
+            class="btn--small recipe__btn"
+            href="http://thepioneerwoman.com/cooking/pasta-with-tomato-cream-sauce/"
+            target="_blank"
+        >
+            <span>Directions</span>
+            <svg class="search__icon">
+                <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
+            </svg>
+        </a>
+    </div>
+
+    </div>
         `;
     }
     addHandlerServings(handler) {
@@ -1032,11 +1144,105 @@ class recipeView {
         document.querySelector('.recipe__info-data--people').textContent = recipe.servings;
         const quantityEl = document.querySelectorAll('.recipe__quantity');
         quantityEl.forEach((el, i)=>{
-            el.textContent = recipe.ingredients[i].quantity.toFixed(1);
+            const quant = recipe.ingredients[i].quantity.toFixed(1);
+            if (quant == 0) el.textContent = '';
+            else el.textContent = quant;
         });
     }
 }
 
-},{"url:../../img/icons.svg":"fd0vu","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../model_js/_recipeModel":"6jEe1"}]},["5ePCO","1i1gu"], "1i1gu", "parcelRequire7e89", {}, "./", "/")
+},{"url:../../img/icons.svg":"fd0vu","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../model_js/_recipeModel":"6jEe1"}],"fJ4WV":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addRecipeView", ()=>addRecipeView);
+class addRecipeView {
+    constructor(){
+        this._parentEl = document.querySelector('.nav__btn--add-recipe');
+        this._overlay1 = document.querySelector(".overlay");
+        this._overlay2 = document.querySelector('.add-recipe-window');
+        this._form = document.querySelector('.upload');
+        this._cancle = document.querySelector('.btn--close-modal');
+    }
+    addHandlerAddRecipe(handler) {
+        this._parentEl.addEventListener("click", ()=>{
+            this._overlay1.classList.remove("hidden");
+            this._overlay2.classList.remove("hidden");
+        });
+        this._form.addEventListener("submit", (e)=>{
+            e.preventDefault();
+            const d = e.target.querySelectorAll('input');
+            d.forEach((element)=>{
+                if (!element.value) return;
+            });
+            handler();
+        });
+        this._cancle.addEventListener("click", ()=>{
+            this._overlay1.classList.add('hidden');
+            this._overlay2.classList.add('hidden');
+        });
+    }
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"2OzFW":[function(require,module,exports,__globalThis) {
+// =`
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "bookmarkView", ()=>bookmarkView);
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class bookmarkView {
+    constructor(){
+        // localStorage.clear();
+        this._bookmarksID = JSON.parse(localStorage.getItem('bookmarked')) || [];
+        this._parentEl = document.querySelector('.bookmarks__list');
+        this.message = this._parentEl.querySelector('.message');
+    }
+    renderBook(handler) {
+        this._bookmarksID.forEach((el)=>{
+            handler(el);
+        });
+    }
+    render(recipe, param = false) {
+        this.message.classList.add('hidden');
+        if (!this._bookmarksID.includes(recipe.id) || param) {
+            this._parentEl.insertAdjacentHTML('beforeend', this.generateMarkup(recipe));
+            if (!param) {
+                this._bookmarksID.push(recipe.id);
+                localStorage.setItem('bookmarked', JSON.stringify(this._bookmarksID));
+            }
+        }
+    }
+    generateMarkup(recipe) {
+        return `<li class="preview">
+        <a class="preview__link" href="#${recipe.id}">
+        <figure class="preview__fig">
+                        <img src="${recipe.image_url}" alt="Test" />
+                        </figure>
+                    <div class="preview__data">
+                        <h4 class="preview__title">${recipe.title} ...</h4>
+                        <p class="preview__publisher">The ${recipe.publisher}</p>
+                        <div class="preview__user-generated">
+                            <svg>
+                                <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
+                            </svg>
+                            </div>
+                    </div>
+                </a>
+            </li>`;
+    }
+    addListener(handler) {
+        const children = this._parentEl.querySelectorAll('.preview__link');
+        children.forEach((child)=>{
+            child.addEventListener('click', function() {
+                children.forEach((ch)=>ch.classList.remove('preview__link--active'));
+                child.classList.add('preview__link--active');
+                let childId = child.getAttribute('href').slice(1);
+                handler(childId);
+            });
+        });
+    }
+}
+
+},{"url:../../img/icons.svg":"fd0vu","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["5ePCO","1i1gu"], "1i1gu", "parcelRequire7e89", {}, "./", "/")
 
 //# sourceMappingURL=forkify.17aebc63.js.map
